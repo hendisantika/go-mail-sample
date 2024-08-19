@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
+	"net/smtp"
+	"os"
 	"time"
 )
 
@@ -19,6 +21,21 @@ func init() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+}
+
+func sendEmail(message string, toAddress string) (response bool, err error) {
+	fromAddress := os.Getenv("EMAIL")
+	fromEmailPassword := os.Getenv("PASSWORD")
+	smtpServer := os.Getenv("SMTP_SERVER")
+	smptPort := os.Getenv("SMTP_PORT")
+
+	var auth = smtp.PlainAuth("", fromAddress, fromEmailPassword, smtpServer)
+	err = smtp.SendMail(smtpServer+":"+smptPort, auth, fromAddress, []string{toAddress}, []byte(message))
+	if err == nil {
+		return true, nil
+	}
+
+	return false, err
 }
 
 func main() {
