@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/segmentio/kafka-go"
 	"log"
 	"net/smtp"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -36,6 +40,35 @@ func sendEmail(message string, toAddress string) (response bool, err error) {
 	}
 
 	return false, err
+}
+
+func consume(ctx context.Context) {
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{os.Getenv("KAFKA_BROKER")},
+		Topic:   "new-user",
+		GroupID: "email-new-users",
+	})
+
+	for {
+		msg, err := r.ReadMessage(ctx)
+		if err != nil {
+			panic("could not read message " + err.Error())
+		}
+		userData := msg.Value
+
+		var user User
+
+		err = json.Unmarshal(userData, &user)
+		if err != nil {
+			panic("could not parse userData " + err.Error())
+		}
+
+		subject := "Subject: Account created!\n\n"
+		body := fmt.Sprintf("You account is now active and your ID is %s. Congrats!", user.ID)
+		message := strings.Join([]string{subject, body}, " ")
+
+		sendEmail(message, user.Email)
+	}
 }
 
 func main() {
